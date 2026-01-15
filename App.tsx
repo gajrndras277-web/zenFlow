@@ -9,6 +9,7 @@ import NotesView from './components/NotesView';
 
 const App: React.FC = () => {
   const [view, setView] = React.useState<View>('dashboard');
+  const [deferredPrompt, setDeferredPrompt] = React.useState<any>(null);
   const [state, setState] = React.useState<AppState>(() => {
     const saved = localStorage.getItem('zenflow_state');
     return saved ? JSON.parse(saved) : { transactions: [], tasks: [], notes: [] };
@@ -17,6 +18,15 @@ const App: React.FC = () => {
   React.useEffect(() => {
     localStorage.setItem('zenflow_state', JSON.stringify(state));
   }, [state]);
+
+  React.useEffect(() => {
+    const handler = (e: any) => {
+      e.preventDefault();
+      setDeferredPrompt(e);
+    };
+    window.addEventListener('beforeinstallprompt', handler);
+    return () => window.removeEventListener('beforeinstallprompt', handler);
+  }, []);
 
   const addTransaction = (t: Omit<Transaction, 'id'>) => {
     const newT: Transaction = { ...t, id: crypto.randomUUID() };
@@ -48,10 +58,33 @@ const App: React.FC = () => {
     setState(prev => ({ ...prev, notes: prev.notes.filter(n => n.id !== id) }));
   };
 
+  const importState = (newState: AppState) => {
+    if (confirm("This will overwrite your current data. Are you sure?")) {
+      setState(newState);
+    }
+  };
+
+  const handleInstall = async () => {
+    if (!deferredPrompt) return;
+    deferredPrompt.prompt();
+    const { outcome } = await deferredPrompt.userChoice;
+    if (outcome === 'accepted') {
+      setDeferredPrompt(null);
+    }
+  };
+
   const renderView = () => {
     switch (view) {
       case 'dashboard':
-        return <Dashboard state={state} onNavigate={setView} />;
+        return (
+          <Dashboard 
+            state={state} 
+            onNavigate={setView} 
+            onImportState={importState} 
+            deferredPrompt={deferredPrompt}
+            onInstall={handleInstall}
+          />
+        );
       case 'finances':
         return <FinanceView transactions={state.transactions} onAddTransaction={addTransaction} />;
       case 'tasks':
@@ -59,7 +92,15 @@ const App: React.FC = () => {
       case 'notes':
         return <NotesView notes={state.notes} onAddNote={addNote} onDeleteNote={deleteNote} />;
       default:
-        return <Dashboard state={state} onNavigate={setView} />;
+        return (
+          <Dashboard 
+            state={state} 
+            onNavigate={setView} 
+            onImportState={importState} 
+            deferredPrompt={deferredPrompt}
+            onInstall={handleInstall}
+          />
+        );
     }
   };
 

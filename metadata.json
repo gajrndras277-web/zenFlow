@@ -1,0 +1,8 @@
+{
+  "name": "Copy of ZenFlow Finance & Tasks",
+  "description": "An all-in-one productivity suite for managing daily finances, tasks, and notes with integrated AI insights.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone"
+  ]
+}
